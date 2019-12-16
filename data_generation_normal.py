@@ -12,6 +12,10 @@ class DataGenerator:
 
         self.graph = None
         self.coordinates = None
+        self.neighbors_cell_types = None
+        self.perturbation = None
+        self.cell_types = None
+        
         self.reset()
 
     def reset(self):
@@ -29,6 +33,12 @@ class DataGenerator:
 
     def generate_cell_types(self):
         self.cell_types = np.random.choice(self.n_cell_types, size=self.n_cells)
+        self.neighbors_cell_types = np.zeros((self.n_cells, self.n_cell_types))
+        for i in range(self.n_cells):
+            cell_types, counts = np.unique(
+                self.cell_types[self.graph[i]], return_counts=True
+            )
+            self.neighbors_cell_types[i][cell_types] = counts / self.K
 
     def generate_perturbation(self):
         shape = (self.n_cell_types, self.n_cell_types, self.n_genes)
@@ -39,25 +49,11 @@ class DataGenerator:
         self.initial_cell_carac = np.random.normal(0, 10, size=shape)
 
     def generate_perturbed_caracteristics(self):
-        raw_cell_type_graph = [
-            np.unique(self.cell_types[self.graph[i]], return_counts=True)
-            for i in range(self.n_cells)
-        ]
         effective_perturbation = (
-            np.array(
-                [
-                    np.sum(
-                        [
-                            count * self.perturbation[self.cell_types[i]][val]
-                            for (val, count) in zip(*line)
-                        ],
-                        axis=0,
-                    )
-                    for i, line in enumerate(raw_cell_type_graph)
-                ]
-            )
-            / self.K
-        )
+            self.perturbation[self.cell_types]
+            * self.neighbors_cell_types[:, :, np.newaxis]
+        ).sum(axis=1)
+
         self.effective_gene_expression = (
             self.initial_cell_carac[self.cell_types]
             + self.epsilon * effective_perturbation

@@ -1,7 +1,6 @@
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
-
 class DataGenerator:
     def __init__(self, n_cells, n_cell_types, n_genes, K, epsilon=0.25):
         self.n_cells = n_cells
@@ -14,6 +13,7 @@ class DataGenerator:
         self.coordinates = None
         self.neighbors_cell_types = None
         self.perturbation = None
+        self.expression = None
         self.cell_types = None
         
         self.reset()
@@ -30,9 +30,16 @@ class DataGenerator:
         nn = NearestNeighbors(self.K + 1)
         nn.fit(self.coordinates)
         self.graph = nn.kneighbors(self.coordinates, self.K + 1)[1][:, 1:]
+        
+        self.graph_reversed = [[] for _ in range(self.n_cells)]
+        for v, nbs in enumerate(self.graph):
+            for u in nbs:
+                self.graph_reversed[u].append(v)
+        self.graph_reversed = [np.array(nbs) for nbs in self.graph_reversed]
 
     def generate_cell_types(self):
-        self.cell_types = np.random.choice(self.n_cell_types, size=self.n_cells)
+        self.pi = np.random.dirichlet([1]*self.n_cell_types)
+        self.cell_types = np.random.choice(self.n_cell_types, size=self.n_cells, p = self.pi)
         self.neighbors_cell_types = np.zeros((self.n_cells, self.n_cell_types))
         for i in range(self.n_cells):
             cell_types, counts = np.unique(
@@ -71,5 +78,6 @@ class DataGenerator:
             self.epsilon = epsilon
             self.generate_perturbed_caracteristics()
 
-        self.observation = np.random.normal(self.effective_gene_expression, 1)
-        return self.observation
+        self.observations = np.random.normal(self.effective_gene_expression, 1)
+        return self.observations
+    
